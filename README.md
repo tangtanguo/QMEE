@@ -24,3 +24,10 @@ attachment latency) change over pup development?
       when interacting with two pups instead of one. 
       
       
+# Assignment 1 Notes:
+The main file is named "QMEE_TangTangAssignment1_09January2026". I've also 
+attached the built-in ChickWeight dataset as a separate CSV file named
+"ChickWeight.csv". The relative path is "QMEE_TangTangAssignment1_09Jan2026.R"
+The working directory is the main repo directory (QMEE).
+
+      
