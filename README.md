@@ -1,5 +1,7 @@
 # QMEE Assignment 1 (09 Jan 2026)
 
+#Readmefile last updated for QMEE Assignment 1
+
 For this class, I will use behavioural data I collected looking at parental care
 and sibling interaction behaviours between bat moms and their pups across six 
 developmental time points. I had two conditions: single-pup or double-pup 
