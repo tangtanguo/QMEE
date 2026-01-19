@@ -75,7 +75,7 @@ TrialStart_Behaviours <- MomPupBehav %>%
     BeforeLetGo    = TimeFromLetGo < 0)
 
 
-TrialStart_Behaviours_plot <- ggplot(TrialStart_Behaviours, aes(x = time_from_letgo, y = Behavior, colour = before_letgo)) +
+TrialStart_Behaviours_plot <- ggplot(TrialStart_Behaviours, aes(x = TimeFromLetGo, y = Behavior, colour = BeforeLetGo)) +
   geom_jitter(height = 0.2, alpha = 0.5) +
   geom_vline(xintercept = 0, linetype = "dashed") +
   scale_colour_manual(values = c("FALSE" = "grey", "TRUE" = "red")) +
