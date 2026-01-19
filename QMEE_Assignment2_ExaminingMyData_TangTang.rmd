@@ -1,0 +1,236 @@
+---
+title: "QMEE Assignment 2 - Examining my Data"
+author: "Tang Tang Guo"
+date: "2026-01-17"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(readr)
+library(stringr)
+library(ggplot2)
+```
+
+I will extract MomID into a separate column and remove all columns that are not important beyond for data cleaning. I will also turn all character vectors into factors.
+```{r}
+MomPupBehav <- read_csv("../QMEE/Mom-PupInteractions_MasterDatasheet_16Jan2026.csv", show_col_types = FALSE)
+
+MomPupBehav <- MomPupBehav %>%
+  separate(
+    `Observation id`,
+    into = c("MomID", "NotMomID"),
+    sep = "_",
+    extra = "merge",
+    remove = FALSE) %>%
+  select(-NotMomID, -`Media file name`, -Description) %>%
+  mutate(across(where(is.character), as.factor))
+
+summary(MomPupBehav)
+
+```
+
+# Question 1: Is "LET GO" scored in all videos by each rater?
+
+The behaviour "LET GO" signals the start of a trial. Each rater should have scored "LET GO" for each video because this behaviour will be used to code the following:
+- trial duration (i.e. each trial should last 5 minutes, relative to "LET GO", which is the trial start time) 
+-  attachment latency (i.e. time it takes for pup to attach to mom's teat, relative to the trial start time)
+```{r}
+
+MomPupBehav %>%
+  group_by(`Observation id`, Rater, PND) %>%
+  summarise(has_letgo = any(Behavior == "LET GO"), .groups = "drop") %>%
+  filter(!has_letgo)
+
+# all videos have "LET GO" scored! No fixes needed!
+
+```
+
+# Question 2: Are there any behaviours scored before the start of each trial? 
+The behaviour "LET GO" signals the start of each trial. Therefore, I don't want to include any behaviours scored before "LET GO".
+
+
+If point behaviours are scored before "LET GO", I will remove them from the dataset. 
+EXCEPTION: "Acceptance/Resistance" and "Pup/Mom Initiation" are point behaviours that aren't time sensitive. Therefore, these behaviours will be kept irregardless of its time stamp. 
+
+If state behaviours are scored before "LET GO", I will adjust its "start time" to be the same as the "LET GO" start time.
+```{r}
+
+# LET GO TIMES PER EACH VIDEO BY RATER
+LetGo_Times <- MomPupBehav %>%
+  filter(Behavior == "LET GO") %>%
+  group_by(`Observation id`, Rater) %>%
+  summarise(
+    LetGo_Start = min(`Start (s)`),
+    .groups = "drop")
+
+# BEHAVIOUR START TIMES RELATIVE TO "LET GO" START TIME
+TrialStart_Behaviours <- MomPupBehav %>%
+  select(Rater, `Observation id`, Behavior, `Start (s)`, `Stop (s)`) %>%
+  left_join(LetGo_Times, by = c("Observation id", "Rater")) %>%
+  filter(!is.na(LetGo_Start)) %>%
+  mutate(
+    TimeFromLetGo = `Start (s)` - LetGo_Start,
+    BeforeLetGo    = TimeFromLetGo < 0)
+
+
+TrialStart_Behaviours_plot <- ggplot(TrialStart_Behaviours, aes(x = time_from_letgo, y = Behavior, colour = before_letgo)) +
+  geom_jitter(height = 0.2, alpha = 0.5) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  scale_colour_manual(values = c("FALSE" = "grey", "TRUE" = "red")) +
+  labs(
+    x = "Start Time relative to 'LET GO' (s)",
+    y = "Behavior",
+    colour = "Scored before 'LET GO'?",) +
+  theme_bw()
+
+```
+There are instances where "sibling cooperation", "pup initiation" and "acceptance" were scored BEFORE "LET GO" was scored.
+Acceptance and pup initiation are not time-sensitive behaviours and therefore will be kept. 
+
+Sibling cooperation, a state behaviour, has sometimes been scored before "LET GO". I will adjust this behaviour's start time to be the same as the "LET GO" start time. I will also fix the durations to match the new adjusted start times.
+
+# Fixing Dataframe for Question 2
+```{r}
+MomPupBehav <- MomPupBehav %>% 
+  select(-any_of(c("LetGo_Start", "LetGo_Start.x", "LetGo_Start.y"))) %>%
+  left_join(LetGo_Times, by = c("Observation id", "Rater")) %>% 
+  mutate(
+    `Start (s)` = if_else(
+      !is.na(LetGo_Start) &
+        Behavior == "SIBLING COOPERATION" &
+        `Start (s)` < LetGo_Start,
+      LetGo_Start,         
+      `Start (s)`
+    ),
+    `Duration (s)` = if_else(
+      `Behavior type` == "STATE",              
+      `Stop (s)` - `Start (s)`,               
+      `Duration (s)`                          
+    )
+  ) %>%
+  select(-LetGo_Start)
+
+```
+
+# Question 3: Are there any behaviours scored after the 5-minute trial window? (do a plot!)
+"LET GO" signals the start of a trial and each trial should last 5 minutes. Therefore, any behaviours scored 5 minutes after "LET GO" is initially scored, are behaviours outside of the trial window 
+
+If point or state behaviours are scored after a 5-minute trial, I will remove them from the dataset.
+EXCEPTION: "Acceptance/Resistance" and "Pup/Mom Initiation" are point behaviours that aren't time sensitive. Therefore, these behaviours will be kept irregardless of its time stamp. 
+
+If state behaviours start within the 5-minute trial but last longer than the trial duration, I will adjust its "stop time" to be the same as the trial end time. Duration for these behaviours will be recalculated.
+```{r}
+# BEHAVIOUR START TIMES RELATIVE TO END OF TRIAL TIMES
+TrialEnd_Behaviours <- MomPupBehav %>%
+  select(Rater, `Observation id`, Behavior, `Start (s)`, `Stop (s)`) %>%
+  left_join(LetGo_Times, by = c("Observation id", "Rater")) %>%
+  filter(!is.na(LetGo_Start)) %>%
+  mutate(
+    TimeFromLetGo = `Start (s)` - LetGo_Start,   
+    Over_5min = TimeFromLetGo > 300)
+
+
+TrialEnd_Behaviours_plot <- ggplot(TrialEnd_Behaviours, aes(x = TimeFromLetGo, y = Behavior, colour = Over_5min)) +
+  geom_jitter(height = 0.2, alpha = 0.5) +
+  geom_vline(xintercept = 300, linetype = "dashed") +
+  scale_colour_manual(values = c("FALSE" = "grey60", "TRUE" = "red")) +
+  labs(
+    x = "Start Time relative to 'LET GO' (s)",
+    y = "Behavior",
+    colour = "Scored after end of trial?",
+  ) +
+  theme_bw()
+
+```
+"Acceptance/Resistance" seem to be the most common behaviours scored outside of our 5-minute trial window. These behaviours are not time-sensitive and therefore will be kept. 
+
+The following state behaviours will be removed if their start times occur outside of the 5-minute trial window:
+- UNSUCCESSFUL ATTACHMENT
+- SUCCESSFUL ATTACHMENT
+- SIBLING INTERFERENCE
+- GUIDANCE
+- FIRST ATTACHMENT
+
+If any of these state behaviours have a start time within the 5-minute trial window but ends outside of it, I will adjust its stop time to be the same as the trial end time. Durations for these behaviours will be recalculated.
+
+# Fixing Dataframe for Question 3
+```{r}
+
+MomPupBehav <- MomPupBehav %>%
+  left_join(LetGo_Times, by = c("Observation id", "Rater")) %>%
+  mutate(
+    Trial_End = LetGo_Start + 300,          
+    TimeFromLetGo = `Start (s)` - LetGo_Start) %>%
+  filter(
+    (TimeFromLetGo >= 0 & `Start (s)` <= Trial_End) |
+      Behavior %in% c("ACCEPTANCE", "RESISTANCE")) %>%
+  mutate(
+    `Stop (s)` = if_else(
+      `Behavior type` == "STATE" &
+        !Behavior %in% c("ACCEPTANCE", "RESISTANCE") &
+        `Stop (s)` > Trial_End,
+      Trial_End,
+      `Stop (s)`),
+    `Duration (s)` = case_when(
+      `Behavior type` == "STATE" &
+        !Behavior %in% c("ACCEPTANCE", "RESISTANCE") ~
+          pmax(`Stop (s)` - `Start (s)`, 0),
+      TRUE ~ `Duration (s)`)) %>%
+  select(-LetGo_Start, -Trial_End, -TimeFromLetGo)
+
+```
+
+# Question 4: Are there more than 3 subjects (pup1, pup2, no focal) reported per rater?
+```{r}
+UniqueSubjectCheck <- MomPupBehav %>%
+  distinct(`Observation id`, Rater, Subject) %>%      
+  count(`Observation id`, Rater, name = "n_subjects") %>%  
+  filter(n_subjects > 3)                              
+
+# all videos have no. more than 3 subjects scored! No fixes needed!
+```
+
+# Question 5: Did each rater use the same colours to identify pups of each mom?
+```{r}
+SubjectsPerMom <- MomPupBehav %>%
+  filter(
+    !is.na(Subject),
+    str_to_lower(Subject) != "no focal subject"
+  ) %>%
+  distinct(MomID, Rater, Subject) %>%          
+  group_by(MomID, Rater) %>%
+  summarise(
+    subjects   = paste(sort(as.character(Subject)), collapse = ";"),
+    n_subjects = n(),                           
+    .groups    = "drop"
+  )
+
+# each rater used the same set of colours for each mom-pup triad! No fixes needed.
+```
+
+# Question 6: Are all pups scored in each condition (i.e. by themselves [single] and with their siblings[double]) at each PND?
+```{r}
+PupConditionCheck_PND <- MomPupBehav %>%
+  filter(!is.na(Subject),
+         str_to_lower(Subject) != "no focal subject") %>%
+  distinct(MomID, Subject, PND, Condition) %>%   # unique per pup × age × condition
+  group_by(MomID, Subject, PND) %>%
+  summarise(
+    has_single = any(Condition == "Single"),
+    has_double = any(Condition == "Double"),
+    .groups = "drop") %>%
+  filter(!(has_single & has_double))
+
+```
+Grey_109's other pup died before PND 6 so this checks out. We only have the single recordings from Grey109's purple pup after its sibling passed away. RIP
+
+We also only have single condition recordings for Orange08 and Orange30 pups because we didn't paint their nails and therefore, we couldn't tell the pups apart when they were together in the double condition. LOL. So this also checks out.
+
+I won't remove these videos from the df because they may still be useful outside of comparing videos between single and double-pup conditions.
+
+```{r}
+saveRDS(MomPupBehav, file = "QMEE_MomPupInteractionBehav_Dataset.rds")
+```
+So that's it for data cleaning! Time to create an RDS file and I'll see you in the next script :)

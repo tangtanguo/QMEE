@@ -1,7 +1,40 @@
-# QMEE Assignment 1 (09 Jan 2026)
+# QMEE Assignment 2 (19 Jan 2026)
 
-#Readmefile last updated for QMEE Assignment 1
+The two scripts for Assignment 2 are named "QMEE_Assignment2_ExaminingMyData_TangTang.rmd" 
+and "QMEE_Assignment2_ReadingRDSFile_TangTang.R"
+I've also attached my dataset as a separate CSV file named 
+"Mom-PupInteractions_MasterDatasheet_16Jan2026.csv". 
+The relative path is "../QMEE/QMEE_Assignment2_ExaminingMyData_TangTang.rmd".
+The working directory is the main repo directory (QMEE). 
+I've also attached an AI citation pdf since I used an LLM to help with my code
+for this assignment. 
 
+
+# 1. QMEE_Assignment2_ExaminingMyData_TangTang.rmd
+This script breaks down different ways I examined my dataset. I created questions
+to help me organize my code to catch any errors or anomalies. Specifically, I
+wanted to check if there are any input errors by the raters (users) such as 
+incorrect spellings and inter-rater errors per observation. I also wanted to 
+make sure all videos that were meant to be scored were accounted for. Additionally,
+I looked for mistakes in behaviours scored outside of the trial time for each video,
+and removed them accordingly. 
+
+# 2. QMEE_Assignment2_ReadingRDSFile_TangTang.R
+After examining my data and cleaning it, I calculated ICC scores for all the 
+behaviours across two raters, to see how similar their scores were.
+
+
+# Investigations
+One way I'd like to investigate this data is comparing behaviours across PND in
+separate conditions (single vs double). 
+Then, I'd also like to compare between conditions and examine how parental care
+changes when mom is dealing with one pup vs both her pups.
+Similarly, I'd like to see if there is sibling competition by examining how pup
+behaviour changes in the absence and presence of their sibling (single vs double
+condition)
+
+
+# Extra Context
 For this class, I will use behavioural data I collected looking at parental care
 and sibling interaction behaviours between bat moms and their pups across six 
 developmental time points. I had two conditions: single-pup or double-pup 
@@ -26,10 +59,5 @@ attachment latency) change over pup development?
       when interacting with two pups instead of one. 
       
       
-# Assignment 1 Notes:
-The main file is named "QMEE_TangTangAssignment1_09January2026". I've also 
-attached the built-in ChickWeight dataset as a separate CSV file named
-"ChickWeight.csv". The relative path is "QMEE_TangTangAssignment1_09Jan2026.R"
-The working directory is the main repo directory (QMEE).
-
+  
       
