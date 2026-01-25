@@ -2,6 +2,9 @@
 
 library(irr)
 
+## JD: Make sure your code runs from beginning to end in a new session.
+## This won't because a library call is needed for %>%
+
 MomPupBehav <- readRDS(file = "QMEE_MomPupInteractionBehav_Dataset.rds")
 
 # Computing ICC scores between two raters: Easton and Emily
@@ -9,8 +12,10 @@ MomPupBehav <- readRDS(file = "QMEE_MomPupInteractionBehav_Dataset.rds")
       # I will calculate ICC scores between Easton and Emily to see how similar
       # their scores are.
 
-
+## JD What does this mean?:
 # LET GO = 0.999
+
+## JD: Prefer the base pipe (|>) instead of %>%
 letgo <- MomPupBehav %>%
   filter(Behavior == "LET GO") %>%
   group_by(`Observation id`, Rater) %>%
