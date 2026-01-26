@@ -13,9 +13,8 @@ output: html_document
 ```{r}
 library(ggplot2)
 library(dplyr)
-library(tidyr)
-library(readr)
 library(stringr)
+library(tidyr)
 library(paletteer)
 
 MomPupBehav <- readRDS("QMEE_MomPupInteractionBehav_Dataset.rds")
@@ -73,14 +72,15 @@ BehavFrequencies <- MomPupBehav %>%
 #  Plotting Frequencies of Each Behaviour per PND
 ggplot(BehavFrequencies, aes(x = PND, y = frequency)) +
   geom_col() +
-  facet_wrap(~ Behavior_facet, scales = "free_y") +
+  facet_wrap(~ Behavior_facet, ncol = 4, scales = "free_y") +
+  scale_x_continuous(breaks = c(2, 6, 10, 14, 22, 30)) +
   labs(x = "Age in Days", y = "Frequency") +
   theme_bw()
 
-```
-These histograms give me a lot of useful information. For example, I can confirm that I recorded at 6 different developmental time points. It makes sense for the last two to be spaced farther apart since I recorded every 4 days from days 2-14, and then switched to recording every 8 days for days 22 and 30. 
+#I normally like theme_classic), but I think theme_bw() looks better for this multi-panel graph since the grid background makes it easier to see values on the y-axis.
 
-I can also see that the behaviour "LET GO" is scored at the same frequency across pup age, which makes sense because "LET GO" should be scored in each video. We see a dip at PND 30 (i.e the last bar) because a few pups did not make it to PND 30 in the study, thus fewer videos at PND 30 were recorded in total. I see a similar pattern with "FIRST TOUCH" - scored to determine which pup mom approached first in the double-pup conditions
+```
+I see that the behaviour "LET GO" is scored at the same frequency across pup age, which makes sense because "LET GO" should be scored in each video. We see a dip at PND 30 (i.e the last bar) because a few pups did not make it to PND 30 in the study, thus fewer videos at PND 30 were recorded in total. I see a similar pattern with "FIRST TOUCH" - scored to determine which pup mom approached first in the double-pup conditions
 
 I also see an interesting pattern for my binary behaviours. Mom initiation occurs more
 frequently in the beginning of pup development, but pup initiation occurs more at the
@@ -92,7 +92,6 @@ Beyond that, I can see that the frequency of behaviours like "FIRST ATTACHMENT",
 
 
 # Visualizing Duration of Behaviours Over Time
-
 Similarly, I can also create multiple histograms looking at the duration of each behaviour across pup age, using ggplot2's facet_wrap() function.
 ```{r}
 
@@ -109,24 +108,24 @@ BehavDurations <- MomPupBehav %>%
 #  Plotting Duration of Each Behaviour per PND
 ggplot(BehavDurations, aes(x = PND, y = Duration)) +
   geom_col() +
-  facet_wrap(~ Behavior_facet, scales = "free_y") +
+  facet_wrap(~ Behavior_facet, ncol = 2, scales = "free_y") +
+  scale_x_continuous(breaks = c(2, 6, 10, 14, 22, 30)) +
   labs(x = "Age in Days", y = "Duration (s)") +
   theme_bw()
 
 ```
 I can see that the duration of "GUIDANCE" drops exponentially over pup development. Where there are "SUCCESSFUL ATTACHMENTS", it seems that pups stay attached for similar durations over time, and we only see a decrease after Day 14. "SIBLING INTERFERENCE" and "SIBLING COOPERATION" seem highly variable. 
 
+# Attachment Latency
 Lastly, I want to visualize "ATTACHMENT LATENCY", which is the time it takes for pups to attach to mom's teat. This event is calculated by subtracting the start time for "LET GO" from the start time for "FIRST ATTACHMENT". 
 
 I want to visualize attachment latency for both the single-pup and double-pup conditions across time. Since the same individuals are in both conditions and repeatedly sampled over time, I will calculate the average attachment latency for each individual pup on each sampling day for each condition. On top of that, since I have multiple raters for each video, I will also need to take into account that multiple raters scored the videos.
-
-# Attachment Latency
 ```{r}
 
 # Dataframe for Attachment Latency
 
 latency_time <- MomPupBehav %>%
-  # filtering out the start times for "LET GO" and "FIRST ATTACHMENT"
+# Filtering out the start times for "LET GO" and "FIRST ATTACHMENT"
   filter(Behavior %in% c("LET GO", "FIRST ATTACHMENT"),
          Subject != "No focal subject" | Behavior == "LET GO") %>%
   mutate(
@@ -135,7 +134,7 @@ latency_time <- MomPupBehav %>%
   group_by(`Observation id`, Rater) %>%
   mutate(letgo_time = first(letgo_time[!is.na(letgo_time)])) %>%
   ungroup() %>%
-  # calculating attachment latency for each pup per video per rater
+# Calculating attachment latency for each pup per video per rater
   group_by(Condition, `Observation id`, Rater, Subject, PND) %>%
   summarise(
     letgo_time = first(letgo_time),
@@ -143,13 +142,13 @@ latency_time <- MomPupBehav %>%
     attachment_latency = firstattach_time - letgo_time,
     .groups = "drop") %>%
   filter(!is.na(attachment_latency)) %>%
-  # averaging attachment latency for across each developmental timepoint
+# Averaging attachment latency for across each developmental timepoint
   group_by(Condition, `Observation id`, Subject, PND) %>%
   summarise(attachment_latency = mean(attachment_latency, na.rm = TRUE),
             .groups = "drop") %>%
   mutate(PND = as.numeric(PND)) %>%
   group_by(Condition, PND) %>%
-# computing standard error for ribbons. I chose SE over SD since I am graphing the mean average latency across days and I want to compare the mean of my estimates. Is this the correct approach? I'm honestly still not confident about when I should be using SD over SE.
+# Computing standard error for ribbons. I chose SE over SD since I am graphing the mean average latency across days and I want to compare the mean of my estimates. Is this the correct approach? I'm honestly still not confident about when I should be using SD over SE.
   summarise(
     mean_latency = mean(attachment_latency, na.rm = TRUE),
     se_latency   = sd(attachment_latency, na.rm = TRUE) / sqrt(n()),
@@ -168,7 +167,7 @@ ggplot(latency_time, aes(x = PND, y = mean_latency, color = Condition)) +
   expand_limits(x = 0, y = 0) +
   scale_x_continuous(breaks = c(0, 2, 6, 10, 14, 22, 30)) +
   scale_y_continuous(limits = c(0,200)) +
-  # I found the paletteer package, which is a comprehensive collection of several pallets in the R-universe. It's not necessary considering I only needed to choose 2 colours, but it's fun! 
+#I found the paletteer package, which is a comprehensive collection of several pallets in the R-universe. It's not necessary considering I only needed to choose 2 colours, but it's fun! 
   paletteer::scale_colour_paletteer_d("ggsci::alternating_igv") +
   paletteer::scale_fill_paletteer_d("ggsci::alternating_igv") +
   labs(

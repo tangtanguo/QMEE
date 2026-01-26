@@ -1,8 +1,8 @@
 # QMEE Assignment 3 (23 January 2026)
 The R Markdown file for Assignment 3 is named "QMEE_Assignment3_DataVisualizations_TangTang.rmd".
-The relative path is "../QMEE/QMEE_Assignment2_ExaminingMyData_TangTang.rmd".
+The relative path is "../QMEE_Assignment2_ExaminingMyData_TangTang.rmd".
 The working directory is the main repo directory (QMEE). In this script, I make
-3 different visualizations and explain reasoning for making these graphs. 
+3 different visualizations and explain my reasoning for making these graphs. 
 
 
 # QMEE Assignment 2 (19 Jan 2026)
