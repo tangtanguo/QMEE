@@ -14,8 +14,10 @@ library(ggplot2)
 ```
 
 I will extract MomID into a separate column and remove all columns that are not important beyond for data cleaning. I will also turn all character vectors into factors.
+
+JD: Removed ../QMEE, which I doubt was doing anything for you – I name these directories after each student.
 ```{r}
-MomPupBehav <- read_csv("../QMEE/Mom-PupInteractions_MasterDatasheet_16Jan2026.csv", show_col_types = FALSE)
+MomPupBehav <- read_csv("Mom-PupInteractions_MasterDatasheet_16Jan2026.csv", show_col_types = FALSE)
 
 MomPupBehav <- MomPupBehav %>%
   separate(
@@ -46,6 +48,8 @@ MomPupBehav %>%
 # all videos have "LET GO" scored! No fixes needed!
 
 ```
+
+JD: This would be a good place to put stopifnot() so you can catch changes in the data if any.
 
 # Question 2: Are there any behaviours scored before the start of each trial? 
 The behaviour "LET GO" signals the start of each trial. Therefore, I don't want to include any behaviours scored before "LET GO".
@@ -234,3 +238,5 @@ I won't remove these videos from the df because they may still be useful outside
 saveRDS(MomPupBehav, file = "QMEE_MomPupInteractionBehav_Dataset.rds")
 ```
 So that's it for data cleaning! Time to create an RDS file and I'll see you in the next script :)
+
+JD: Obviously can't check all of that, but seems sensible and careful. Did you mean to put either of the plots into the output?

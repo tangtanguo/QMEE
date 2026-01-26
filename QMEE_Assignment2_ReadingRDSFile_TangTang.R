@@ -1,9 +1,14 @@
 # QMEE Assignment 2 - Reading in RDS File
 
 library(irr)
+library(dplyr)
+library(tidyr)
 
 ## JD: Make sure your code runs from beginning to end in a new session.
 ## This won't because a library call is needed for %>%
+## You didn't fix this, so I added dplyr above; probably better to just use the base pipe and take %>% out, though
+
+## JD: Also need to add tidyr – make sure _each_ script runs in a new session. Your script can depend on the data file that it's reading explicitly, but shouldn't depend on other scripts
 
 MomPupBehav <- readRDS(file = "QMEE_MomPupInteractionBehav_Dataset.rds")
 
@@ -164,3 +169,5 @@ icc(interference_frequency[, c("Easton", "Emily")],
 # out how to do ICC scores and I still need to figure out how my df should change
 # depending on if I'm looking at frequency, duration or binary variables.
 # THEN, I will figure out how to simplify this code. 
+
+## JD: Sounds very sensible. Grade 2.1/3
