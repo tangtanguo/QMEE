@@ -1,0 +1,185 @@
+---
+title: "QMEE_Assignment3_GGPlotVisualizations"
+author: "Tang Tang Guo"
+date: "2026-01-22"
+output: html_document
+---
+
+# RESEARCH QUESTIONS:
+1) How do parental care behaviours change over pup development? 
+2) How do parental care behaviours change when with one pup vs both of their pups across pup development? 
+
+# Library and Loading Data
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(readr)
+library(stringr)
+library(paletteer)
+
+MomPupBehav <- readRDS("QMEE_MomPupInteractionBehav_Dataset.rds")
+```
+
+The behaviours in my ethogram fall into these 3 categories:
+
+# Binary Behaviours: 
+These behaviours are mutually exclusive, meaning raters could only
+score one behaviour or the other, but never both. These behaviours include:
+- mom or pup initiation
+- mom acceptance or mom resistance
+
+# Frequency of Behaviour: 
+These behaviours can be scored multiple times within a trial. I care about the frequency of these behaviours across pup age in days. These behaviours include:
+- unsuccessful attachments
+- successful attachments
+- guidance
+
+# Duration of Behaviour: 
+These behaviours can last for a certain amount of time within a trial. I care about the duration of these behaviours across pup age in days. These behaviours include:
+- attachment latency (first attachment - let go)
+- successful attachments
+- guidance
+- sibling interference
+- sibling cooperation
+
+* NOTE: some behaviours fall into multiple categories. For example, I'm interested in the duration of guidance mom provides her pups, but I also want to count the frequency of guidance behaviours that occur in each trial across pup age. 
+
+
+# Visualizing Frequency of Behaviours Over Time
+Using ggplot2's facet_wrap() function, I can create multiple histograms to look at the frequency of each behaviour across pup age in days (PND).
+
+I will also set the order of behaviours to be displayed to make it easier to compare similar behaviours with each other such as "PUP INITIATION" & "MOM INITIATION" or "SIBLING INTEFERENCE" & "SIBLING COOPERATION" (i.e. proximity of comparisons)
+```{r}
+
+# Setting the Order of Behaviours 
+behav_order <- c("LET GO", "FIRST ATTACHMENT", "FIRST TOUCH", "GUIDANCE",
+                  "PUP INITIATION", "MOM INITIATION", "ACCEPTANCE", "RESISTANCE",
+                  "SUCCESSFUL ATTACHMENT", "UNSUCCESSFUL ATTACHMENT",
+                  "SIBLING INTERFERENCE", "SIBLING COOPERATION", "OBSTRUCTION")
+
+# Learned this from Stack Overflow to wrap labels that are long!
+wrapped_levels <- str_wrap(behav_order, width = 15)
+
+# Dataframe with Frequencies of Each Behaviour per PND
+BehavFrequencies <- MomPupBehav %>% 
+  group_by(Behavior, Condition, Rater, `Observation id`, Subject, PND) %>% 
+  summarise(frequency = n(), .groups = "drop") %>% 
+  mutate(
+    Behavior = factor(Behavior, levels = behav_order),
+    Behavior_facet = factor(str_wrap(as.character(Behavior), width = 15),
+                            levels = wrapped_levels))
+
+#  Plotting Frequencies of Each Behaviour per PND
+ggplot(BehavFrequencies, aes(x = PND, y = frequency)) +
+  geom_col() +
+  facet_wrap(~ Behavior_facet, scales = "free_y") +
+  labs(x = "Age in Days", y = "Frequency") +
+  theme_bw()
+
+```
+These histograms give me a lot of useful information. For example, I can confirm that I recorded at 6 different developmental time points. It makes sense for the last two to be spaced farther apart since I recorded every 4 days from days 2-14, and then switched to recording every 8 days for days 22 and 30. 
+
+I can also see that the behaviour "LET GO" is scored at the same frequency across pup age, which makes sense because "LET GO" should be scored in each video. We see a dip at PND 30 (i.e the last bar) because a few pups did not make it to PND 30 in the study, thus fewer videos at PND 30 were recorded in total. I see a similar pattern with "FIRST TOUCH" - scored to determine which pup mom approached first in the double-pup conditions
+
+I also see an interesting pattern for my binary behaviours. Mom initiation occurs more
+frequently in the beginning of pup development, but pup initiation occurs more at the
+end of pup development. A similar trend is found with mom acceptance and resistance.
+
+Beyond that, I can see that the frequency of behaviours like "FIRST ATTACHMENT", "SUCCESSFUL ATTACHMENT" and "GUIDANCE" seem to decrease over pup development. "UNSUCCESSFUL ATTACHMENT" and "SIBLING COOPERATION" seem to increase over pup development, and "SIBLING INTERFERENCE" seems to peak in the middle of pup development.
+
+"OBSTRUCTION" is a behaviour I had my raters score when the moms or pups went under the towel which would interfere with their scoring abilities. Therefore, it is important for data cleaning, but I don't care to analyze this behaviour. 
+
+
+# Visualizing Duration of Behaviours Over Time
+
+Similarly, I can also create multiple histograms looking at the duration of each behaviour across pup age, using ggplot2's facet_wrap() function.
+```{r}
+
+# Dataframe with Duration of Each Behaviour per PND
+BehavDurations <- MomPupBehav %>% 
+  filter(!is.na(`Duration (s)`)) %>%
+  group_by(Behavior, Condition, Rater, `Observation id`, Subject, PND) %>% 
+  summarise(Duration = sum(`Duration (s)`, na.rm = TRUE), .groups = "drop") %>% 
+  mutate(
+    Behavior = factor(Behavior, levels = behav_order),
+    Behavior_facet = factor(str_wrap(as.character(Behavior), width = 15),
+                            levels = wrapped_levels))  
+
+#  Plotting Duration of Each Behaviour per PND
+ggplot(BehavDurations, aes(x = PND, y = Duration)) +
+  geom_col() +
+  facet_wrap(~ Behavior_facet, scales = "free_y") +
+  labs(x = "Age in Days", y = "Duration (s)") +
+  theme_bw()
+
+```
+I can see that the duration of "GUIDANCE" drops exponentially over pup development. Where there are "SUCCESSFUL ATTACHMENTS", it seems that pups stay attached for similar durations over time, and we only see a decrease after Day 14. "SIBLING INTERFERENCE" and "SIBLING COOPERATION" seem highly variable. 
+
+Lastly, I want to visualize "ATTACHMENT LATENCY", which is the time it takes for pups to attach to mom's teat. This event is calculated by subtracting the start time for "LET GO" from the start time for "FIRST ATTACHMENT". 
+
+I want to visualize attachment latency for both the single-pup and double-pup conditions across time. Since the same individuals are in both conditions and repeatedly sampled over time, I will calculate the average attachment latency for each individual pup on each sampling day for each condition. On top of that, since I have multiple raters for each video, I will also need to take into account that multiple raters scored the videos.
+
+# Attachment Latency
+```{r}
+
+# Dataframe for Attachment Latency
+
+latency_time <- MomPupBehav %>%
+  # filtering out the start times for "LET GO" and "FIRST ATTACHMENT"
+  filter(Behavior %in% c("LET GO", "FIRST ATTACHMENT"),
+         Subject != "No focal subject" | Behavior == "LET GO") %>%
+  mutate(
+    letgo_time = if_else(Behavior == "LET GO", `Start (s)`, NA_real_),
+    fa_time    = if_else(Behavior == "FIRST ATTACHMENT", `Start (s)`, NA_real_)) %>%
+  group_by(`Observation id`, Rater) %>%
+  mutate(letgo_time = first(letgo_time[!is.na(letgo_time)])) %>%
+  ungroup() %>%
+  # calculating attachment latency for each pup per video per rater
+  group_by(Condition, `Observation id`, Rater, Subject, PND) %>%
+  summarise(
+    letgo_time = first(letgo_time),
+    firstattach_time = first(fa_time[!is.na(fa_time)]),
+    attachment_latency = firstattach_time - letgo_time,
+    .groups = "drop") %>%
+  filter(!is.na(attachment_latency)) %>%
+  # averaging attachment latency for across each developmental timepoint
+  group_by(Condition, `Observation id`, Subject, PND) %>%
+  summarise(attachment_latency = mean(attachment_latency, na.rm = TRUE),
+            .groups = "drop") %>%
+  mutate(PND = as.numeric(PND)) %>%
+  group_by(Condition, PND) %>%
+# computing standard error for ribbons. I chose SE over SD since I am graphing the mean average latency across days and I want to compare the mean of my estimates. Is this the correct approach? I'm honestly still not confident about when I should be using SD over SE.
+  summarise(
+    mean_latency = mean(attachment_latency, na.rm = TRUE),
+    se_latency   = sd(attachment_latency, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop"
+    )
+
+# Plotting Attachment Latency over Time for Single-Pup vs Double-Pup Conditions
+ggplot(latency_time, aes(x = PND, y = mean_latency, color = Condition)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  geom_ribbon(
+    aes(ymin = mean_latency - se_latency,
+        ymax = mean_latency + se_latency,
+        fill = Condition),
+    alpha = 0.2, color = NA) +
+  expand_limits(x = 0, y = 0) +
+  scale_x_continuous(breaks = c(0, 2, 6, 10, 14, 22, 30)) +
+  scale_y_continuous(limits = c(0,200)) +
+  # I found the paletteer package, which is a comprehensive collection of several pallets in the R-universe. It's not necessary considering I only needed to choose 2 colours, but it's fun! 
+  paletteer::scale_colour_paletteer_d("ggsci::alternating_igv") +
+  paletteer::scale_fill_paletteer_d("ggsci::alternating_igv") +
+  labs(
+    y = "Average Attachment Latency (s)",
+    x = "Age in Days",
+    color = "Condition") +
+  theme_classic(base_size = 16)
+ 
+```
+I used Cleveland's hierarchy of graphical perception to inform my visualization. At the top of this hierarchy, he explains that people are best at interpreting results when graphs are positioned along a common scale. Since I am comparing a behaviour between two conditions, I decided to make a line graph that compares the time series change in a behaviour along the same scale. I also use colours to distinguish between the two conditions. I also chose colours that should be distinguishable for colour-blind individuals as well.
+
+Generally, it seems that attachment latency stays relatively consistent across the beginning of pup development, but then increases later in development. This would make sense since as pups become more independent, moms may be less willing to let pups nurse from them.
+
+It also seems early on in pup development, attachment latency seems to be higher in the double-pup condition compared to the single-pup condition. This would also make sense since moms may be more distracted with having to care for two pups instead of one, leading to longer attachment latencies.However, as pups age, attachment latency is similar between single-pup and double-pup conditions. 
