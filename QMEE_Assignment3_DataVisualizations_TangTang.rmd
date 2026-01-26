@@ -46,7 +46,7 @@ These behaviours can last for a certain amount of time within a trial. I care ab
 
 
 # Visualizing Frequency of Behaviours Over Time
-Using ggplot2's facet_wrap() function, I can create multiple histograms to look at the frequency of each behaviour across pup age in days (PND).
+Using ggplot2's `facet_wrap()` function, I can create multiple histograms to look at the frequency of each behaviour across pup age in days (PND).
 
 I will also set the order of behaviours to be displayed to make it easier to compare similar behaviours with each other such as "PUP INITIATION" & "MOM INITIATION" or "SIBLING INTEFERENCE" & "SIBLING COOPERATION" (i.e. proximity of comparisons)
 ```{r}
@@ -56,6 +56,9 @@ behav_order <- c("LET GO", "FIRST ATTACHMENT", "FIRST TOUCH", "GUIDANCE",
                   "PUP INITIATION", "MOM INITIATION", "ACCEPTANCE", "RESISTANCE",
                   "SUCCESSFUL ATTACHMENT", "UNSUCCESSFUL ATTACHMENT",
                   "SIBLING INTERFERENCE", "SIBLING COOPERATION", "OBSTRUCTION")
+
+## BMB: do you need these labels to be all uppercase? maybe easier to
+##  read in Mixed Case ... ?
 
 # Learned this from Stack Overflow to wrap labels that are long!
 wrapped_levels <- str_wrap(behav_order, width = 15)
@@ -76,6 +79,13 @@ ggplot(BehavFrequencies, aes(x = PND, y = frequency)) +
   scale_x_continuous(breaks = c(2, 6, 10, 14, 22, 30)) +
   labs(x = "Age in Days", y = "Frequency") +
   theme_bw()
+## BMB: Bar plots anchored at zero for these data, but I'd encourage you
+## to try geom_point() instead.
+## if this is a time series, would geom_line() make sense (using aes(group=...)
+## if necessary to join lines across factor levels) ?
+## BMB: if you used geom_line, you could combine thematically similar sets
+## of behaviours within facets (e.g. sibling interaction) to make comparison
+## across behaviours easier ...
 
 #I normally like theme_classic), but I think theme_bw() looks better for this multi-panel graph since the grid background makes it easier to see values on the y-axis.
 
@@ -93,17 +103,22 @@ Beyond that, I can see that the frequency of behaviours like "FIRST ATTACHMENT",
 
 # Visualizing Duration of Behaviours Over Time
 Similarly, I can also create multiple histograms looking at the duration of each behaviour across pup age, using ggplot2's facet_wrap() function.
+
+BMB: are these histograms? Histograms are usually plots of binned *continuous* data ...
+
 ```{r}
 
 # Dataframe with Duration of Each Behaviour per PND
 BehavDurations <- MomPupBehav %>% 
   filter(!is.na(`Duration (s)`)) %>%
-  group_by(Behavior, Condition, Rater, `Observation id`, Subject, PND) %>% 
+  group_by(Behavior, Condition, Rater, `Observation id`, Subject, PND) %>%
+  ## BMB: rename 'Duration (s)' to Duration upstream (during data cleaning)?
   summarise(Duration = sum(`Duration (s)`, na.rm = TRUE), .groups = "drop") %>% 
   mutate(
     Behavior = factor(Behavior, levels = behav_order),
     Behavior_facet = factor(str_wrap(as.character(Behavior), width = 15),
                             levels = wrapped_levels))  
+## BMB: can use across(), .by ...
 
 #  Plotting Duration of Each Behaviour per PND
 ggplot(BehavDurations, aes(x = PND, y = Duration)) +
@@ -165,6 +180,8 @@ ggplot(latency_time, aes(x = PND, y = mean_latency, color = Condition)) +
         fill = Condition),
     alpha = 0.2, color = NA) +
   expand_limits(x = 0, y = 0) +
+  ## BMB: define days on which you have data above?
+  ##  unique(your_data$PND) ?
   scale_x_continuous(breaks = c(0, 2, 6, 10, 14, 22, 30)) +
   scale_y_continuous(limits = c(0,200)) +
 #I found the paletteer package, which is a comprehensive collection of several pallets in the R-universe. It's not necessary considering I only needed to choose 2 colours, but it's fun! 
@@ -179,6 +196,10 @@ ggplot(latency_time, aes(x = PND, y = mean_latency, color = Condition)) +
 ```
 I used Cleveland's hierarchy of graphical perception to inform my visualization. At the top of this hierarchy, he explains that people are best at interpreting results when graphs are positioned along a common scale. Since I am comparing a behaviour between two conditions, I decided to make a line graph that compares the time series change in a behaviour along the same scale. I also use colours to distinguish between the two conditions. I also chose colours that should be distinguishable for colour-blind individuals as well.
 
+BMB: could also use e.g. different line types and shapes (redundantly) and/or direct labeling ...
+
 Generally, it seems that attachment latency stays relatively consistent across the beginning of pup development, but then increases later in development. This would make sense since as pups become more independent, moms may be less willing to let pups nurse from them.
 
 It also seems early on in pup development, attachment latency seems to be higher in the double-pup condition compared to the single-pup condition. This would also make sense since moms may be more distracted with having to care for two pups instead of one, leading to longer attachment latencies.However, as pups age, attachment latency is similar between single-pup and double-pup conditions. 
+
+mark: 2
