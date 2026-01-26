@@ -10,6 +10,7 @@ library(tidyr)
 
 ## JD: Also need to add tidyr – make sure _each_ script runs in a new session. Your script can depend on the data file that it's reading explicitly, but shouldn't depend on other scripts
 
+## JD: Better not to push the .rds file: it doesn't need to be under revision control, and often good to confirm that others can make it and use it.
 MomPupBehav <- readRDS(file = "QMEE_MomPupInteractionBehav_Dataset.rds")
 
 # Computing ICC scores between two raters: Easton and Emily
