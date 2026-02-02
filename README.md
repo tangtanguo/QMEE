@@ -1,3 +1,11 @@
+# QMEE Assignment 4 (2 February 2026)
+There is no R Markdown file for this assignment. Instead, there is a PDF file named 
+"QMEE_Assignment4_StatisticalAnalyses_TangTang.pdf". The working directory is the main
+repo directory (QMEE). In this assignment, I examine a paper looking at mom and pup bat vocalizations,
+critique the way an author writes about their results and provide suggestions 
+on how to make the results more clear and concise for the readers.
+
+
 # QMEE Assignment 3 (23 January 2026)
 The R Markdown file for Assignment 3 is named "QMEE_Assignment3_DataVisualizations_TangTang.rmd".
 The working directory is the main repo directory (QMEE). In this script, I make
