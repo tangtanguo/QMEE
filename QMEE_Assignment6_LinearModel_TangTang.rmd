@@ -1,0 +1,136 @@
+---
+title: "QMEE_Assignment6_LinearModels"
+author: "Tang Tang Guo"
+date: "2026-02-16"
+output: html_document
+---
+
+I will be using pup growth data for Assignment 6. I measured the masses and forearm lengths of pups everyday from when they were 2 days old to 30 days old. I'm interested in comparing growth rates between mixed-sex (female-male) and same-sex (female-female, male-male) siblings. But first, I want to see if there are sex differences in growth rate, which may effect my results when comparing growth between sibling pairs. 
+
+According to a previous paper published from our lab... 
+
+"Captive-born pup mass increased nearly linearly throughout development and there was no difference in mass between male and female pups at birth or by PND 45" (Mayberry & Faure, 2014). 
+
+Therefore, I hypothesize that there will be no sex differences in growth rate between male and female pups during their first 30 days of life. 
+
+## Libraries
+```{r}
+
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(lme4)
+library(performance)
+library(emmeans)
+library(effects)
+
+```
+
+## Loading and Cleaning Data
+```{r}
+
+PupMassData <- read.csv("Combined_PupMomMass_2024_2025.csv")
+
+PupMassData <- PupMassData %>% 
+  select(-Birthday, -MomMass_g, -ForearmLength_mm, -Year) %>%  # we will just work with pup mass for this assignment
+  filter(PND >1) %>% 
+  filter(PND < 31) %>% 
+  mutate(across(c(PupID, MomID, Sex), as.factor))
+
+# I will make Age categorical instead of continuous for comparisons. 
+PupMassData <- PupMassData %>%
+  mutate(DevelopmentCategory = case_when(
+    PND >= 1 & PND <= 10  ~ "Young",
+    PND >= 11 & PND <= 20 ~ "Mid",
+    PND >= 21 & PND <= 30 ~ "Old",
+    TRUE ~ NA_character_ # Assigns NA for any other values
+  ))
+
+summary(PupMassData)
+
+
+```
+## Histogram of Pup Mass by Sex
+```{r}
+
+PupMassHistogram <- ggplot(PupMassData, aes(x = PupMass_g, fill = Sex)) +
+  geom_histogram(
+    bins = round(sqrt(length(PupMassData$PupMass_g))),
+    color = "black",
+    alpha = 0.5
+  ) +
+  theme_minimal()
+
+```
+
+It seems that males and females occupy the same range of masses, generally speaking. However, this gives us no information about time (age via development categories). There seems to be more females in the dataset overall. The distribution is unimodal, continuous, and does not contain any 0s, which means we can probably fit this data with a linear model without any transformations!
+
+Our response variable is pup mass, and we have two predictor variables: age (i.e. development category) and sex of pups. 
+```{r}
+
+GrowthRateModel_SexAge <- lm(
+  PupMass_g ~ DevelopmentCategory * Sex, 
+  data=PupMassData
+  )
+
+```
+
+# Diagnostic Plots
+```{r}
+
+performance::check_model(GrowthRateModel_SexAge)
+
+```
+
+Posterior Predictive Check:
+Our observed data line resembles the model-predicted line. There are some slight differences, but for the most part, these lines are similar. 
+
+Homogeneity of Variance:
+Our reference line is mostly flat and horizontal, suggesting our data is homoscedastic which aligns with the assumptions of our linear model.
+
+Linearity:
+Our reference line is flat and horizontal. This means our assumption that there is a linear relationship between our predictor variables (development category and sex) and response variable (pup mass) is accurate and supported.
+ 
+Collinearity:
+We are seeing low to moderate collinearity for our predictor variables. This implies that our predictor variables are not highly correlated and we are not violating the assumption of independence for the linear model. 
+
+Influential Observations:
+All points are inside the contour line. There aren't many "influential" observations that are skewing the data or heavily influencing the results.
+
+Normality of Residuals:
+Our residuals roughly fall along the flat horizontal line, however, the tails seem to be curving upwards, implying our residuals might not be normally distributed. This would violate the normality assumption of the linear model.
+
+
+It seems that our data fits every assumption of the linear model, with the exception of normality, which is also the least of concern. I attempted a log transformation on this data to see if that would help, but that actually made our diagnostic plots violate more assumptions of the linear model. It also did not help with normality. Since we aren't using significance testing for diagnostics, I think it is safe to move on using the linear model to fit our data with, since it doesn't violate any assumptions of the model all that much. 
+
+# Predictive Plots
+```{r}
+
+em_sex <- emmeans(GrowthRateModel_SexAge, ~ Sex)
+print(em_contr <- contrast(em_sex, method = "eff", adjust = "none"))
+plot(em_contr) + geom_vline(xintercept = 0, lty = 2)
+
+```
+Within my linear model that looks at sex, development category, and the interaction between sex and development category, I am asking the specific question: "Is there an effect of sex when averaged across all levels of development category?"
+
+According to this contrast, we predict to see no effect of sex. It seems both males and females are close to and cross this "zero"  line, so there may be no difference between the two groups. 
+
+```{r}
+
+plot(emmeans(GrowthRateModel_SexAge, ~ Sex*DevelopmentCategory), comparison = TRUE)
+
+```
+
+When I take a look at a plot of the interaction between sex and development category, there also appears to be no effect of sex across any level of development time. There seems to be an effect of development category, since all the young, mid, and old categories don't seem to overlap with each other. However, within each development category, we see that males and females seem to overlap at each level which may suggest that there is no difference between the groups. 
+
+# Inferential Plot
+```{r}
+
+plot(allEffects(GrowthRateModel_SexAge))
+
+```
+
+Lastly, I used the effects package to plot all effects of age, developmental category and their interactions. There are separate plots for males and females (effect of sex) across time (development category). Similar to our predictions, we see an effect of development category (i.e. young pups are smaller than mid-aged pups, which are smaller than older pups) for both male and female pups. However, the rate at which they grow, seems to be the same between the two sexes. Therefore, it seems that there is no effect of sex on growth of the pups, and they follow similar growth patterns. 
+
+This would support previous work done in our lab which state that captive-born pup mass (1) increased linearly throughout development and (2) there was no difference between male and female pups at birth or by PND 30. 
