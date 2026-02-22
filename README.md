@@ -5,6 +5,17 @@ repo directory (QMEE). In this assignment, I examine a paper looking at mom and 
 critique the way an author writes about their results and provide suggestions 
 on how to make the results more clear and concise for the readers.
 
+## JD
+
+1) It's fine not to rewrite if you think it's fine. I like the idea of trying to calculate an effect size (and confidence intervals if possible, using an effect size alone can be misleading)
+
+2) Agree about the effect size. I think fix is just wrong. The evidence presented (high P value) means that we can't tell whether our measure for habituation is positive or negative across the hypothesized population. Without confidence intervals, there is no way to “reliably” conclude that there is no habituation. This is the same mistake I made in flu. A high P value (per se) should never be used as evidence for anything. 
+
+3) Again, the high P value does not “suggest” on its own. You're just substituting words.
+
+Grade: 1.9/3
+
+
 
 # QMEE Assignment 3 (23 January 2026)
 The R Markdown file for Assignment 3 is named "QMEE_Assignment3_DataVisualizations_TangTang.rmd".
