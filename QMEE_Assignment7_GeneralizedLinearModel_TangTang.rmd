@@ -99,7 +99,7 @@ For my inferential plot, I used the effects package to plot the effect of PND on
 
 I predict that early in development, moms will guide their pups to nurse more often and for longer durations. As pups become independent later in development, I predict less frequent guidance to occur. I also predict that guidance will decrease faster when two siblings are present instead of just one. 
 ```{r}
-coverage <- MomPupBehav %>% # how many unique combinations are there?
+coverage <- MomPupBehav %>% 
   distinct(Condition, PND, PupID, ObservationID, Rater) %>%
   mutate(scored = TRUE)
 
