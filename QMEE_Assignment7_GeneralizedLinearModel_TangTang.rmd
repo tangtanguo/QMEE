@@ -1,0 +1,178 @@
+---
+title: "QMEE_Assignment7_GeneralizedLinearModels_TangTang"
+author: "Tang Tang Guo"
+date: "2026-02-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Library
+```{r}
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(lme4)
+library(DHARMa)
+library(effects)
+library(patchwork)
+```
+
+# Overdispersion function (found this on the GLM FAQ!)
+```{r}
+overdisp_fun <- function(model) {
+    rdf <- df.residual(model)
+    rp <- residuals(model,type="pearson")
+    Pearson.chisq <- sum(rp^2)
+    prat <- Pearson.chisq/rdf
+    pval <- pchisq(Pearson.chisq, df=rdf, lower.tail=FALSE)
+    c(chisq=Pearson.chisq,ratio=prat,rdf=rdf,p=pval)
+}
+```
+
+# Loading Data 
+
+To examine parent-offspring conflict in big brown bats, I recorded mother and single-pup interactions, as well as mother and double-pup interactions, across 6 development time points. My research question is "how does parental care change across development and between singletons and twins?
+```{r}
+
+MomPupBehav <- readRDS("Assignment7Datasheet.rds")
+
+MomPupBehav <- MomPupBehav %>%
+  mutate(
+    PupID = if_else(
+      Subject == "no focal subject",
+      NA_character_,
+      paste(as.character(MomID), as.character(Subject), sep = "_")
+    ),
+    PupID = factor(PupID)
+  )
+
+summary(MomPupBehav)
+
+```
+
+
+## MOM/PUP INITIATION BEHAVIOUR
+
+I will focus on a binary behaviour. My binary behaviour is "mom initiation" or "pup initiation", where raters are forced to score whether the mom approached pup first (i.e. mom initiation), or pup approached mom first (i.e. pup initiation). Mom and pup initiation is mutually exclusive and is scored only once per video. I predict that early in development, there will be more mom initiation, and later in development, there will be more pup initiation. 
+```{r}
+MomPupInitiation_behavs <- c("MOM INITIATION", "PUP INITIATION")
+
+MomPupInitiation <- MomPupBehav %>% 
+  filter(Behaviour %in% MomPupInitiation_behavs) %>% 
+  select(-Duration_s, -Stop_s, -Start_s, -BehaviourType, -Subject) 
+  
+```
+
+### Diagnostic Plot
+The mom/pup initiation data is nominal and binary, meaning mom initiation and pup initiation are mutually exclusive events for each individual. Therefore, I will fit this data with a binomial model with a logit link. 
+
+Since I'm fitting binary data, I don't need to check for dispersion because I shouldn't be using quasibinomial or beta-binomial models for binary variables.
+```{r warning = FALSE}
+
+MomPupInitiation_model <- glm(
+  Behaviour ~ Condition * PND,
+  data = MomPupInitiation, 
+  family = binomial(link = "logit"))
+
+performance::check_model(MomPupInitiation_model)
+plot(simulateResiduals(MomPupInitiation_model))
+```
+
+According to our diagnostic plots, it seems a binomial model with a logit link fits my initiation data quite well. The performance test shows that the residuals are normally distributed, there's low collinearity, our data appears mostly homoscedastic, and there don't seem to be any influential observations or outliers skewing our data. This is backed up by my DHARMA plot. Our model of the data passes the KS test of normality, dispersion test, and outlier test. We see some slight deviations in the DHARMa residual vs predicted plot, but I think overall our model fits well. 
+
+## Inferential Plot
+```{r}
+plot(allEffects(MomPupInitiation_model))
+```
+
+For my inferential plot, I used the effects package to plot the effect of PND on initiation behaviour for both conditions. It seems the slope for pup initiation is steeper in the single condition than double condition. This may suggest that moms are more likely to approach her pups when there are two of them as opposed to just one. But regardless, we see that pup initiation increases across development in both conditions. 
+
+
+
+## GUIDANCE BEHAVIOUR
+
+  I will also focus on a frequency behaviour. Raters were asked to score "Guidance" behaviour which could occur multiple times in a video, and for any duration as well. I will focus on frequency instead of duration for this assignment. Since the dataframe only picks up instances where "Guidance" was scored, I need to go in and add "0" values for observations (videos) where this behaviour is not scored. Zeros in this case, is biologically relevant, so I will add 0s to ensure that when guidance was not observed in a video, this is represented in our dataframe.
+
+I predict that early in development, moms will guide their pups to nurse more often and for longer durations. As pups become independent later in development, I predict less frequent guidance to occur. I also predict that guidance will decrease faster when two siblings are present instead of just one. 
+```{r}
+coverage <- MomPupBehav %>% # how many unique combinations are there?
+  distinct(Condition, PND, PupID, ObservationID, Rater) %>%
+  mutate(scored = TRUE)
+
+
+guidance_counts <- MomPupBehav %>%
+  filter(Behaviour == "GUIDANCE") %>%
+  count(Condition, PND, PupID, ObservationID, Rater, name = "Frequency")
+
+guidance_freq <- coverage %>%
+  left_join(guidance_counts,
+            by = c("Condition","PND","PupID","ObservationID","Rater")) %>%
+  mutate(Frequency = replace_na(Frequency, 0L)) %>%
+  select(-scored)
+```
+
+This is a little unrelated to the assignment but I had a question about how to fit my models. I'm confused because I was following along with the lecture example, and I realized I was visualizing my data by just PND and not by Condition, which doesn't address my research question. How do I fit a model to my data if when I visualize my data by Condition, it seems the single and double conditions follow different trends (double looks linear, and single looks like a 3rd degree polynomial)? When I fit my model to the data only by PND, it actually does not capture either of the points by condition.
+```{r}
+
+plotdata_byPND <- guidance_freq %>% 
+  group_by(PND) %>% 
+  summarise(
+    sum = sum(Frequency),
+    .groups = "drop"
+  )
+
+plotdata_byPNDCondition <- guidance_freq %>% 
+  group_by(PND, Condition) %>% 
+  summarise(
+    sum = sum(Frequency),
+    .groups = "drop"
+  )
+
+
+ggA <- ggplot(plotdata_byPND, aes(PND, sum, )) + geom_point()
+ggB <- ggplot(plotdata_byPNDCondition, aes(PND, sum, color = Condition )) + geom_point()
+
+ggA1 <- ggA + geom_smooth(method = "glm", colour = "red",
+                         formula = y~x,
+                         method.args = list(family = "poisson"))
+
+ggB1 <- ggB + geom_smooth(method = "glm", colour = "blue",
+                         formula = y~x,
+                         method.args = list(family = "poisson"))
+
+ggcombined <- (ggA1 | ggB1)
+
+
+```
+
+Since I have count data that has no set maximum, I will model my Guidance Frequency data with a poisson family with a log link. I will also test my data for overdispersion. If my data is overdispersed, then a quasipoisson might fit my data better.
+```{r}
+
+GuidanceFreq_pois <- glm(
+  Frequency ~ Condition * PND,
+  family = poisson(link = "log"),
+  data = guidance_freq
+)
+
+overdisp_fun(GuidanceFreq_pois)
+```
+It seems my data is not overdispersed. In fact, if ratio ~ 1 is what we would expect, my data seems to be underdispersed since my ratio is only 0.63...
+
+```{r}
+performance::check_model(GuidanceFreq_pois)
+plot(simulateResiduals(GuidanceFreq_pois))
+```
+According to my performance model, there is low collinearity in my data and it seems homoscedastic. There doesn't seem to be any outliers or influential observations skewing my data. The residuals seem somewhat normal, but there are tails on either side, suggesting there could be a better fit than the model I've tried. What is alarming to me is that there seems to be misspecified dispersion and zero-inflation in my data. 
+
+Looking at my DHARMa plot, it is quite clear that the model I have fit my data with is not great. My data does not appear to be normal or homoscedastic according to the QQ residuals plot, and there are strong deviations detected in the residuals vs predicted plot. I tried using a quasipoisson distribution and negative binomial distribution but they did not fit my data any better since my data isn't overdispersed. I also tried using the "poly" function because my response variable might not change linearly with my predictor(s). Neither of these fixes seemed to help. I don't really know how I could make this model a better fit without adding mixed effects. I don't think it would make sense to fit my data with just a GLM with no mixed effects, since I repeatedly measured from the same bats across different timepoints, and my data is also naturally 0-inflated. This would explain why my diagnostic plots look the way they do but this was my best shot trying to fit a model without adding mixed effects.
+
+## Inferential Plot
+```{r}
+plot(allEffects(GuidanceFreq_pois))
+```
+
+Again, for my inferential plot, I used the effects package to plot the effect of PND on the frequency of guidance behaviour for both single and double pup conditions. It seems the slope for guidance frequency is similar in both the single condition than double condition. However, there seems to be overall less guidance for the double condition than single condition, as suggested by the line being much lower in the double condition across development. This may suggest that when mom has two pups with her as opposed to one, she is spending less time on each pup individually.
