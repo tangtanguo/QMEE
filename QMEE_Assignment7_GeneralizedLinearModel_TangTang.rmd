@@ -31,6 +31,7 @@ overdisp_fun <- function(model) {
     pval <- pchisq(Pearson.chisq, df=rdf, lower.tail=FALSE)
     c(chisq=Pearson.chisq,ratio=prat,rdf=rdf,p=pval)
 }
+## BMB: could also use functions in 'aod' package
 ```
 
 # Loading Data 
@@ -38,7 +39,8 @@ overdisp_fun <- function(model) {
 To examine parent-offspring conflict in big brown bats, I recorded mother and single-pup interactions, as well as mother and double-pup interactions, across 6 development time points. My research question is "how does parental care change across development and between singletons and twins?
 ```{r}
 
-MomPupBehav <- readRDS("Assignment7Datasheet.rds")
+## BMB: need to get uppercase right for people without MacOS
+MomPupBehav <- readRDS("Assignment7DataSheet.rds")
 
 MomPupBehav <- MomPupBehav %>%
   mutate(
@@ -64,7 +66,7 @@ MomPupInitiation_behavs <- c("MOM INITIATION", "PUP INITIATION")
 MomPupInitiation <- MomPupBehav %>% 
   filter(Behaviour %in% MomPupInitiation_behavs) %>% 
   select(-Duration_s, -Stop_s, -Start_s, -BehaviourType, -Subject) 
-  
+## BMB can use -c(Duration_s, Stop_s, ...) to be more compact  
 ```
 
 ### Diagnostic Plot
@@ -83,6 +85,8 @@ plot(simulateResiduals(MomPupInitiation_model))
 ```
 
 According to our diagnostic plots, it seems a binomial model with a logit link fits my initiation data quite well. The performance test shows that the residuals are normally distributed, there's low collinearity, our data appears mostly homoscedastic, and there don't seem to be any influential observations or outliers skewing our data. This is backed up by my DHARMA plot. Our model of the data passes the KS test of normality, dispersion test, and outlier test. We see some slight deviations in the DHARMa residual vs predicted plot, but I think overall our model fits well. 
+
+**BMB**: with only two categorical vars there's not *that* much that can go wrong ...
 
 ## Inferential Plot
 ```{r}
@@ -118,12 +122,17 @@ guidance_freq <- coverage %>%
 This is a little unrelated to the assignment but I had a question about how to fit my models. I'm confused because I was following along with the lecture example, and I realized I was visualizing my data by just PND and not by Condition, which doesn't address my research question. How do I fit a model to my data if when I visualize my data by Condition, it seems the single and double conditions follow different trends (double looks linear, and single looks like a 3rd degree polynomial)? When I fit my model to the data only by PND, it actually does not capture either of the points by condition.
 ```{r}
 
+## plotdata_byPND <- guidance_freq %>% 
+##   group_by(PND) %>% 
+##   summarise(
+##     sum = sum(Frequency),
+##     .groups = "drop"
+##   )
+
+## BMB: using .by is a little more compact
 plotdata_byPND <- guidance_freq %>% 
-  group_by(PND) %>% 
   summarise(
-    sum = sum(Frequency),
-    .groups = "drop"
-  )
+     sum = sum(Frequency), .by = PND)
 
 plotdata_byPNDCondition <- guidance_freq %>% 
   group_by(PND, Condition) %>% 
@@ -131,7 +140,6 @@ plotdata_byPNDCondition <- guidance_freq %>%
     sum = sum(Frequency),
     .groups = "drop"
   )
-
 
 ggA <- ggplot(plotdata_byPND, aes(PND, sum, )) + geom_point()
 ggB <- ggplot(plotdata_byPNDCondition, aes(PND, sum, color = Condition )) + geom_point()
@@ -146,8 +154,16 @@ ggB1 <- ggB + geom_smooth(method = "glm", colour = "blue",
 
 ggcombined <- (ggA1 | ggB1)
 
+ggplot(guidance_freq, aes(PND, Frequency, colour = Condition)) +
+  stat_sum(position = position_dodge(width = 0.25)) +
+  geom_smooth(method = "glm",
+              formula = y ~ poly(x,2),
+              method.args = list(family = "quasipoisson")) +
+  scale_y_continuous(breaks = 0:10)
 
 ```
+
+**BMB**: it looks like a quadratic is good for single, double might be flatter, but `poly(x,2)*Condition` should allow you sufficient flexibility ...
 
 Since I have count data that has no set maximum, I will model my Guidance Frequency data with a poisson family with a log link. I will also test my data for overdispersion. If my data is overdispersed, then a quasipoisson might fit my data better.
 ```{r}
