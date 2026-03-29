@@ -174,21 +174,38 @@ GuidanceFreq_pois <- glm(
   data = guidance_freq
 )
 
+gp2 <- update(GuidanceFreq_pois, . ~ poly(PND,2)*Condition)
+anova(gp2, GuidanceFreq_pois)
 overdisp_fun(GuidanceFreq_pois)
 ```
 It seems my data is not overdispersed. In fact, if ratio ~ 1 is what we would expect, my data seems to be underdispersed since my ratio is only 0.63...
 
 ```{r}
 performance::check_model(GuidanceFreq_pois)
+performance::check_model(gp2)
 plot(simulateResiduals(GuidanceFreq_pois))
+plot(simulateResiduals(gp2))
 ```
 According to my performance model, there is low collinearity in my data and it seems homoscedastic. There doesn't seem to be any outliers or influential observations skewing my data. The residuals seem somewhat normal, but there are tails on either side, suggesting there could be a better fit than the model I've tried. What is alarming to me is that there seems to be misspecified dispersion and zero-inflation in my data. 
 
+BMB: where do you see zero-inflation ... ?
+
 Looking at my DHARMa plot, it is quite clear that the model I have fit my data with is not great. My data does not appear to be normal or homoscedastic according to the QQ residuals plot, and there are strong deviations detected in the residuals vs predicted plot. I tried using a quasipoisson distribution and negative binomial distribution but they did not fit my data any better since my data isn't overdispersed. I also tried using the "poly" function because my response variable might not change linearly with my predictor(s). Neither of these fixes seemed to help. I don't really know how I could make this model a better fit without adding mixed effects. I don't think it would make sense to fit my data with just a GLM with no mixed effects, since I repeatedly measured from the same bats across different timepoints, and my data is also naturally 0-inflated. This would explain why my diagnostic plots look the way they do but this was my best shot trying to fit a model without adding mixed effects.
+
+BMB: agreed.
 
 ## Inferential Plot
 ```{r}
 plot(allEffects(GuidanceFreq_pois))
+plot(allEffects(gp2)) ## BMB: consider this ...
 ```
 
 Again, for my inferential plot, I used the effects package to plot the effect of PND on the frequency of guidance behaviour for both single and double pup conditions. It seems the slope for guidance frequency is similar in both the single condition than double condition. However, there seems to be overall less guidance for the double condition than single condition, as suggested by the line being much lower in the double condition across development. This may suggest that when mom has two pups with her as opposed to one, she is spending less time on each pup individually.
+
+BMB: looking at this, you really ought to be using a GLMM since we have repeated measures per pup ... (as you suggested above)
+
+```{r}
+table(table(guidance_freq$PupID))
+```
+
+mark: 2
